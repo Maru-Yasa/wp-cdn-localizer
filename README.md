@@ -1,4 +1,4 @@
-# Wordpress CDN Localizer
+# Wordpress CDN Localizer (Work in Progress)
 
 Wordpress CDN Localizer is a WordPress plugin that detects external JavaScript and CSS files loaded from Content Delivery Networks (CDNs) and provides an option to create local copies of these resources. It then dynamically replaces the CDN URLs with local URLs on-the-fly, without modifying your theme files.
 
