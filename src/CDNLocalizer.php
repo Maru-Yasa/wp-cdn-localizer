@@ -10,6 +10,8 @@ class CDNLocalizer
     private $whitelist = [];
     private $page_slug = 'cdn-localizer';
 
+    private $cdn_local_dir = 'wp-cdn-localizer';
+
     private $tabs = [
         'cdn_resources' => 'Detected CDN Resources',
         'local_resources' => 'Detected Local Resources',
@@ -32,7 +34,13 @@ class CDNLocalizer
 
     public function add_admin_menu()
     {
+        add_action('admin_enqueue_scripts', array($this, 'add_cdn_localizer_styles'));
         add_menu_page('CDN Localizer', 'CDN Localizer', 'manage_options', $this->page_slug, array($this, 'cdn_localizer_admin_page'), 'dashicons-rest-api');
+    }
+
+    public function add_cdn_localizer_styles()
+    {
+        wp_enqueue_style('cdn_localizer_styles', plugin_dir_url(__FILE__) . '../assets/css/style.css');
     }
 
     private function page_cdn_resources()
@@ -46,15 +54,15 @@ class CDNLocalizer
                 <?php wp_nonce_field('cdn_localizer_save', 'cdn_localizer_nonce'); ?>
                 <input type="submit" name="cdn_localizer_save" class="button button-primary" value="Localize Selected Resources">
             </p>
-            <table class="widefat">
+            <table class="widefat wp-cdn-localizer-table">
                 <thead>
-                <tr>
-                    <th>Origin</th>
-                    <th>Resource</th>
-                    <th>Localize Url</th>
-                    <th>Type</th>
-                    <th>Localize</th>
-                </tr>
+                    <tr>
+                        <th>Origin</th>
+                        <th>Resource</th>
+                        <th>Localize Url</th>
+                        <th>Type</th>
+                        <th>Localize</th>
+                    </tr>
                 </thead>
                 <tbody>
                 <?php foreach ($cdn_resources as $resource => $meta) : ?>
@@ -82,7 +90,7 @@ class CDNLocalizer
     {
         $local_resources = $this->detect_cdn_resources()['local_resources'];
         ?>
-        <table class="widefat">
+        <table class="widefat wp-cdn-localizer-table">
             <thead>
             <tr>
                 <th>Origin</th>
@@ -235,7 +243,7 @@ class CDNLocalizer
 
         $localize = isset($_POST['localize']) ? $_POST['localize'] : array();
         $upload_dir = wp_upload_dir();
-        $cdn_local_dir = $upload_dir['basedir'] . '/cdn-local';
+        $cdn_local_dir = $upload_dir['basedir'] . $this->cdn_local_dir;
 
         if (!file_exists($cdn_local_dir)) {
             wp_mkdir_p($cdn_local_dir);
@@ -246,7 +254,7 @@ class CDNLocalizer
         // Remove unused localized resources
         foreach ($this->cdn_mappings as $resource_url => $localize_url) {
             if (!in_array($resource_url, $localize)) {
-                $filename = basename(parse_url($localize_url, PHP_URL_PATH));
+                $filename = Helper::generateFileName($localize_url);
                 $local_path = $cdn_local_dir . '/' . $filename;
                 if (file_exists($local_path)) {
                     unlink($local_path);
@@ -256,7 +264,7 @@ class CDNLocalizer
 
         // Download localized resources from CDN
         foreach ($localize as $resource_url) {
-            $filename = basename(parse_url($resource_url, PHP_URL_PATH));
+            $filename = Helper::generateFileName($resource_url);
             $local_path = $cdn_local_dir . '/' . $filename;
 
             // If file already exists, skip
@@ -306,6 +314,8 @@ class CDNLocalizer
             }
         }
 
-        return $html->save();
+        $html = $html->save();
+        do_action('cdn_localizer_after_replaced_cdn_urls');
+        return $html;
     }
 }
