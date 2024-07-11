@@ -11,8 +11,7 @@ class CDNLocalizer
 
     private $tabs = [
         'cdn_resources' => 'Detected CDN Resources',
-        'local_resources' => 'Detected Local Resources',
-        'mappings' => 'Mappings'
+        'local_resources' => 'Detected Local Resources'
     ];
 
     public function __construct()
@@ -38,6 +37,8 @@ class CDNLocalizer
     private function page_cdn_resources()
     {
         $cdn_resources = $this->detect_cdn_resources()['cdn_resources'];
+        $cdn_mappings = $this->cdn_mappings;
+
         ?>
             <form method="post">
                 <p>
@@ -49,17 +50,25 @@ class CDNLocalizer
                         <tr>
                             <th>Origin</th>
                             <th>Resource</th>
+                            <th>Localize Url</th>
                             <th>Type</th>
                             <th>Localize</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($cdn_resources as $resource => $meta) : ?>
+                            <?php
+                                $localize = isset($cdn_mappings[$resource]) ? $cdn_mappings[$resource] : '';
+                                $isLocalized = isset($cdn_mappings[$resource]);
+                            ?>
                             <tr>
                                 <td><?php echo esc_html($meta['origin']); ?></td>
                                 <td><?php echo esc_url($resource); ?></td>
+                                <td><?php echo esc_url($localize); ?></td>
                                 <td><?php echo esc_html($meta['type']); ?></td>
-                                <td><input type="checkbox" name="localize[]" value="<?php echo esc_attr($resource); ?>"></td>
+                                <td style="display: flex; justify-content: center;">
+                                    <input type="checkbox" name="localize[]" value="<?php echo esc_attr($resource); ?>" <?php if ($isLocalized) : ?>checked<?php endif; ?>>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -245,24 +254,41 @@ class CDNLocalizer
             wp_mkdir_p($cdn_local_dir);
         }
 
-        $this->cdn_mappings = array();
+        $_cdn_mappings = [];
 
+        // remove unused localized resources
+        foreach ($this->cdn_mappings as $resource_url => $localize_url) {
+            if (!in_array($resource_url, $localize)) {
+                $filename = basename(parse_url($localize_url, PHP_URL_PATH));
+                $local_path = $cdn_local_dir . '/' . $filename;
+                if (file_exists($local_path)) {
+                    unlink($local_path);
+                }
+            }
+        }
+
+        // download localized resources from CDN
         foreach ($localize as $resource_url) {
+            $filename = basename(parse_url($resource_url, PHP_URL_PATH));
+            $local_path = $cdn_local_dir . '/' . $filename;
+
+            // if file already exists, skip
+            if (file_exists($local_path) && isset($this->cdn_mappings[$resource_url])) {
+                $_cdn_mappings[$resource_url] = $this->cdn_mappings[$resource_url];
+                continue;
+            }
+
             $resource_content = wp_remote_get($resource_url);
             if (is_wp_error($resource_content)) {
                 continue;
             }
 
-            $filename = basename(parse_url($resource_url, PHP_URL_PATH));
-            $local_path = $cdn_local_dir . '/' . $filename;
             file_put_contents($local_path, wp_remote_retrieve_body($resource_content));
-
-            $this->cdn_mappings[$resource_url] = $upload_dir['baseurl'] . '/cdn-local/' . $filename;
+            $_cdn_mappings[$resource_url] = $upload_dir['baseurl'] . '/cdn-local/' . $filename;
         }
 
-        update_option('cdn_localizer_mappings', $this->cdn_mappings);
-
-        var_dump($this->cdn_mappings);
+        update_option('cdn_localizer_mappings', $_cdn_mappings);
+        $this->cdn_mappings = $_cdn_mappings;
     }
 
     public function init_cdn_replacement() {
