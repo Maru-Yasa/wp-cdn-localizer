@@ -78,7 +78,6 @@ class CDNLocalizer
                         <th>Origin</th>
                         <th>Resource</th>
                         <th>Type</th>
-                        <th>Localize</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -87,7 +86,6 @@ class CDNLocalizer
                             <td><?php echo esc_html($meta['origin']); ?></td>
                             <td><?php echo esc_url($resource); ?></td>
                             <td><?php echo esc_html($meta['type']); ?></td>
-                            <td><input type="checkbox" name="localize[]" value="<?php echo esc_attr($resource); ?>"></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
