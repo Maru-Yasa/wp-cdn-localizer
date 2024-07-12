@@ -146,7 +146,7 @@ class CDNLocalizer
         ?>
         <div class="wrap">
             <h1>CDN Localizer</h1>
-            <p style="margin-top: 0;">Localize resources from CDN to your local server.</p>
+            <p style="margin-top: 0;">Localize resources from CDN to your local server on the fly.</p>
 
             <nav class="nav-tab-wrapper">
                 <?php foreach ($this->tabs as $tab_slug => $tab_name) : ?>
